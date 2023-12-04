@@ -229,16 +229,16 @@ public class TestRailResultUploader {
   /**
    * The full TestRail project configuration
    *
-   * @param testRailProjectId
-   * @param testRailSuiteId
-   * @param addAllTestsToPlan
-   * @param testRailPlanName
-   * @param testRailRunName
-   * @param statusPassed
-   * @param statusFailed
-   * @param statusSkipped
-   * @param statusError
-   * @param statusCanceled
+   * @param testRailProjectId The project id
+   * @param testRailSuiteId The suite id
+   * @param addAllTestsToPlan If true, adds all test cases to the generated test plan
+   * @param testRailPlanName The name of the plan to report to
+   * @param testRailRunName The name of the run to report to
+   * @param statusPassed The mapped status for passed results
+   * @param statusFailed The mapped status for failed results
+   * @param statusSkipped The mapped status for skipped results
+   * @param statusError The mapped status for error results
+   * @param statusCanceled The mapped status for canceled results
    */
   public record ProjectConfiguration(
       long testRailProjectId,

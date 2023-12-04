@@ -73,4 +73,24 @@ public class TestRailClientFactory {
     final var apiClient = this.getTestRailApi(config);
     return new TestRailClient(apiClient);
   }
+
+  /**
+   * Gets the base TestRail Client for the provided config
+   *
+   * @param config The TestRail Config
+   * @return The TestRail Client Instance
+   */
+  public TestRailParamValidator getTestRailParamValidator(final TestRailConfig config) {
+    return new TestRailParamValidator(getTestRailClient(config));
+  }
+
+  /**
+   * Gets the base TestRail Client for the provided config
+   *
+   * @param config The TestRail Config
+   * @return The TestRail Client Instance
+   */
+  public TestRailResultLogger getTestRailResultLogger(final TestRailConfig config) {
+    return new TestRailResultLogger(getTestRailClient(config));
+  }
 }
