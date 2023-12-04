@@ -67,7 +67,7 @@ public class TestRailParamValidator {
    * @return The TestSuite
    * @throws TestRailException if the validation fails or the suite could not be grabbed.
    */
-  TestSuiteDto validateTestRailSuite(final long suiteId, final long testRailProjectId)
+  public TestSuiteDto validateTestRailSuite(final long suiteId, final long testRailProjectId)
       throws TestRailException {
     // Try to grab the test suite from TestRail, verifying that it exists, and we have access to
     // view
@@ -99,7 +99,7 @@ public class TestRailParamValidator {
    * @return List of strings reporting failed validation issues. Empty list of none.
    * @throws TestRailException Failed validation issues.
    */
-  private List<String> verifyResultStatusCodes(final TestRailStatusMaps statusMaps)
+  public List<String> verifyResultStatusCodes(final TestRailStatusMaps statusMaps)
       throws TestRailException {
     List<String> results = new ArrayList<>();
     var statusList = this.testRailClient.getCustomStatuses();
@@ -181,14 +181,22 @@ public class TestRailParamValidator {
     }
   }
 
-  void validateTestCaseIds(
-      final long projectId, final long suiteId, @NonNull final Set<String> testrailCaseIds)
+  /**
+   * Validates that the provided case ids belong to the suite
+   *
+   * @param projectId The TestRail project ID
+   * @param suiteId The TestRail suite ID
+   * @param testRailCaseIds A set of TestRail case ids
+   * @throws TestRailException If validation fails
+   */
+  public void validateTestCaseIds(
+      final long projectId, final long suiteId, @NonNull final Set<String> testRailCaseIds)
       throws TestRailException {
     final ImmutableSet<Long> testCasesInTestRail =
         this.testRailClient.getTestCasesForSuite(projectId, suiteId).stream()
             .map(TestCaseDto::getId)
             .collect(ImmutableSet.toImmutableSet());
-    for (final String caseId : testrailCaseIds) {
+    for (final String caseId : testRailCaseIds) {
       if (caseId == null) {
         continue;
       }
