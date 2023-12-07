@@ -18,6 +18,7 @@
 package com.applause.auto.testrail.client.interceptors;
 
 import java.io.IOException;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.Interceptor;
 import okhttp3.Response;
@@ -45,7 +46,9 @@ public class UrlInterceptor implements Interceptor {
     // in URL everything after host is "file name", this includes query params and path
     final var path = request.url().url().getPath();
     final var query = request.url().url().getQuery();
-    newUrl.encodedPath(basePath).query(baseQueryPath + path + "&" + query);
+    newUrl
+        .encodedPath(basePath)
+        .query(baseQueryPath + path + Optional.ofNullable(query).map(q -> "&" + q).orElse(""));
     final var newRequest = request.newBuilder().url(newUrl.build()).build();
     return chain.proceed(newRequest);
   }
