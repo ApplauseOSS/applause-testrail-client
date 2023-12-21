@@ -26,6 +26,8 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
@@ -102,11 +104,12 @@ public class TestRailStatusMaps {
    * @return The set of testrail status ids
    */
   public Set<Integer> getTestRailStatusIds() {
-    return Set.of(
-        this.mappedStatusPassed,
-        this.mappedStatusFailed,
-        this.mappedStatusSkipped,
-        this.mappedStatusCanceled,
-        this.mappedStatusError);
+    return Stream.of(
+            this.mappedStatusPassed,
+            this.mappedStatusFailed,
+            this.mappedStatusSkipped,
+            this.mappedStatusCanceled,
+            this.mappedStatusError)
+        .collect(Collectors.toUnmodifiableSet());
   }
 }
