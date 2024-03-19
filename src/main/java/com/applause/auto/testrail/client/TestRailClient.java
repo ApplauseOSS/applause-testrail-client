@@ -23,11 +23,15 @@ import com.applause.auto.testrail.client.models.internal.TestRailStatusComment;
 import com.applause.auto.testrail.client.models.testrail.*;
 import jakarta.ws.rs.core.Response.Status;
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.function.Function;
 import javax.annotation.Nullable;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
@@ -51,7 +55,7 @@ public class TestRailClient {
    */
   public PlanDto getTestPlan(final long planId) throws TestRailException {
     log.debug("Request getPlan from TestRail for planId [ " + planId + " ]");
-    var result = this.apiClient.getPlan(planId).join();
+    var result = this.makeCall(client -> client.getPlan(planId));
 
     if (result.code() == Status.BAD_REQUEST.getStatusCode()) {
       throw new TestRailException(
@@ -119,7 +123,7 @@ public class TestRailClient {
    */
   public List<StatusDto> getCustomStatuses() throws TestRailException {
     log.debug("Requesting getStatuses from TestRail");
-    var result = this.apiClient.getStatuses().join();
+    var result = this.makeCall(client -> client.getStatuses());
     debugLogPostResponse(result.code(), "getStatuses");
 
     throwForCommonErrorStatuses(result, "Could not get TestRail statuses");
@@ -135,7 +139,7 @@ public class TestRailClient {
    */
   public ProjectDto getProject(final long projectId) throws TestRailException {
     log.debug("Requesting getProject from TestRail for projectId [ " + projectId + " ]");
-    var result = this.apiClient.getProject(projectId).join();
+    var result = this.makeCall(client -> client.getProject(projectId));
     debugLogPostResponse(result.code(), "getProject");
 
     if (result.code() == Status.BAD_REQUEST.getStatusCode()) {
@@ -161,7 +165,7 @@ public class TestRailClient {
    */
   public TestSuiteDto getTestSuite(final long suiteId) throws TestRailException {
     log.debug("Requesting getSuite from TestRail for suiteId [ " + suiteId + " ]");
-    var result = this.apiClient.getSuite(suiteId).join();
+    var result = this.makeCall(client -> client.getSuite(suiteId));
     debugLogPostResponse(result.code(), "getSuite");
 
     if (result.code() == Status.BAD_REQUEST.getStatusCode()) {
@@ -197,7 +201,7 @@ public class TestRailClient {
             + " ] planName [ "
             + testPlanName
             + " ]");
-    var result = this.apiClient.addPlan(testRailProjectId, dto).join();
+    var result = this.makeCall(client -> client.addPlan(testRailProjectId, dto));
     debugLogPostResponse(result.code(), "addPlan");
 
     if (result.code() == Status.BAD_REQUEST.getStatusCode()) {
@@ -240,7 +244,7 @@ public class TestRailClient {
         "Sending addResultsForCases request to TestRail for run [{}] with test results count [{}]",
         testRailRunId,
         results.size());
-    var res = this.apiClient.addResultsForCases(testRailRunId, testResults).join();
+    var res = this.makeCall(client -> client.addResultsForCases(testRailRunId, testResults));
     debugLogPostResponse(res.code(), "addResultsForCases");
 
     if (res.code() == Status.BAD_REQUEST.getStatusCode()) {
@@ -276,8 +280,11 @@ public class TestRailClient {
     boolean nextPage = true;
     List<TestCaseDto> cases = new ArrayList<>();
     while (nextPage) {
+      final int currentOffset = offset;
       var res =
-          this.apiClient.getCasesForSuite(projectId, suiteId, offset, TESTRAIL_PAGE_LIMIT).join();
+          this.makeCall(
+              client ->
+                  client.getCasesForSuite(projectId, suiteId, currentOffset, TESTRAIL_PAGE_LIMIT));
       nextPage = false;
       offset += TESTRAIL_PAGE_LIMIT;
       debugLogPostResponse(res.code(), "getCasesForSuite");
@@ -349,7 +356,7 @@ public class TestRailClient {
         testRunName,
         testCaseIds.size());
 
-    var result = this.apiClient.addPlanEntry(testRailPlanId, dto).join();
+    var result = this.makeCall(client -> client.addPlanEntry(testRailPlanId, dto));
     debugLogPostResponse(result.code(), "addPlanEntry");
 
     if (result.code() == Status.BAD_REQUEST.getStatusCode()) {
@@ -388,10 +395,10 @@ public class TestRailClient {
             + (caseIds != null ? caseIds.size() : 0)
             + " ]");
     var result =
-        this.apiClient
-            .updatePlanEntry(
-                planId, planEntryId, UpdatePlanEntryDto.builder().caseIds(caseIds).build())
-            .join();
+        this.makeCall(
+            client ->
+                client.updatePlanEntry(
+                    planId, planEntryId, UpdatePlanEntryDto.builder().caseIds(caseIds).build()));
     debugLogPostResponse(result.code(), "updatePlanEntry");
 
     if (result.code() == Status.BAD_REQUEST.getStatusCode()) {
@@ -432,7 +439,10 @@ public class TestRailClient {
     boolean nextPage = true;
     List<PlanDto> plans = new ArrayList<>();
     while (nextPage) {
-      var result = this.apiClient.getPlansForProject(projectId, offset, TESTRAIL_PAGE_LIMIT).join();
+      final var currentOffset = offset;
+      var result =
+          this.makeCall(
+              client -> client.getPlansForProject(projectId, currentOffset, TESTRAIL_PAGE_LIMIT));
       nextPage = false;
       offset += TESTRAIL_PAGE_LIMIT;
       debugLogPostResponse(result.code(), "getPlansForProject");
@@ -487,8 +497,11 @@ public class TestRailClient {
     boolean nextPage = true;
     List<TestDto> tests = new ArrayList<>();
     while (nextPage) {
+      final var currentOffset = offset;
       var result =
-          this.apiClient.getTests(testRailRunId, statusIds, offset, TESTRAIL_PAGE_LIMIT).join();
+          this.makeCall(
+              client ->
+                  client.getTests(testRailRunId, statusIds, currentOffset, TESTRAIL_PAGE_LIMIT));
       nextPage = false;
       offset += TESTRAIL_PAGE_LIMIT;
       debugLogPostResponse(result.code(), "getTests");
@@ -521,5 +534,20 @@ public class TestRailClient {
 
   private void debugLogPostResponse(final int httpStatusCode, @NonNull final String methodName) {
     log.debug("Retrieved HTTP " + httpStatusCode + " from TestRail " + methodName + " request.");
+  }
+
+  private <T> Response<T> makeCall(
+      Function<TestRailApi, CompletableFuture<Response<T>>> testRailAction)
+      throws TestRailException {
+    try {
+      return testRailAction.apply(apiClient).join();
+    } catch (CompletionException e) {
+      if (e.getCause() instanceof SocketTimeoutException) {
+        throw new TestRailException(TestRailErrorStatus.SOCKET_TIMEOUT);
+      } else {
+        log.info("Encountered an error communicating with TestRail", e);
+        throw new TestRailException(TestRailErrorStatus.UNKNOWN_ERROR);
+      }
+    }
   }
 }
