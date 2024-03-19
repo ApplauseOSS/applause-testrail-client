@@ -24,8 +24,10 @@ import com.applause.auto.testrail.client.errors.TestRailErrorStatus;
 import com.applause.auto.testrail.client.errors.TestRailException;
 import com.applause.auto.testrail.client.models.testrail.*;
 import jakarta.ws.rs.core.Response.Status;
+import java.net.SocketTimeoutException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import lombok.SneakyThrows;
 import okhttp3.OkHttpClient;
 import org.junit.jupiter.api.BeforeAll;
@@ -36,7 +38,9 @@ import retrofit2.Response;
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class TestRailClientTest {
   private static final TestRailApi testRailApi = mock(TestRailApi.class);
+  private static final TestRailApi socketTimeoutApi = mock(TestRailApi.class);
   private static final CompletableFuture mockFuture = mock(CompletableFuture.class);
+  private static final CompletableFuture socketTimeoutFuture = mock(CompletableFuture.class);
   private static final Response mockResponse = mock(Response.class);
 
   private static final Set<Long> setOfZero = Set.of(0L);
@@ -54,10 +58,12 @@ public class TestRailClientTest {
 
   @BeforeEach
   public void setup() {
-    reset(testRailApi, mockResponse, mockFuture);
+    reset(testRailApi, socketTimeoutApi, mockResponse, mockFuture, socketTimeoutFuture);
     client = spy(new TestRailClient(testRailApi));
 
     when(mockFuture.join()).thenReturn(mockResponse);
+    when(socketTimeoutFuture.join())
+        .thenThrow(new CompletionException(new SocketTimeoutException()));
     when(testRailApi.addPlan(anyLong(), any())).thenReturn(mockFuture);
     when(testRailApi.addPlanEntry(anyLong(), any())).thenReturn(mockFuture);
     when(testRailApi.addResult(anyLong(), any())).thenReturn(mockFuture);
@@ -67,6 +73,17 @@ public class TestRailClientTest {
     when(testRailApi.getSuite(anyLong())).thenReturn(mockFuture);
     when(testRailApi.getTests(anyLong(), any(), anyInt(), anyInt())).thenReturn(mockFuture);
     when(testRailApi.updatePlanEntry(anyLong(), anyString(), any())).thenReturn(mockFuture);
+    when(socketTimeoutApi.addPlan(anyLong(), any())).thenReturn(socketTimeoutFuture);
+    when(socketTimeoutApi.addPlanEntry(anyLong(), any())).thenReturn(socketTimeoutFuture);
+    when(socketTimeoutApi.addResult(anyLong(), any())).thenReturn(socketTimeoutFuture);
+    when(socketTimeoutApi.getPlan(anyLong())).thenReturn(socketTimeoutFuture);
+    when(socketTimeoutApi.getProject(anyLong())).thenReturn(socketTimeoutFuture);
+    when(socketTimeoutApi.getStatuses()).thenReturn(socketTimeoutFuture);
+    when(socketTimeoutApi.getSuite(anyLong())).thenReturn(socketTimeoutFuture);
+    when(socketTimeoutApi.getTests(anyLong(), any(), anyInt(), anyInt()))
+        .thenReturn(socketTimeoutFuture);
+    when(socketTimeoutApi.updatePlanEntry(anyLong(), anyString(), any()))
+        .thenReturn(socketTimeoutFuture);
   }
 
   public static void setResponseCode(Status status) {
@@ -76,6 +93,10 @@ public class TestRailClientTest {
 
   public static void setResponseBody(Object body) {
     when(mockResponse.body()).thenReturn(body);
+  }
+
+  public static void setApiClient(final TestRailApi testRailApi) {
+    client = spy(new TestRailClient(testRailApi));
   }
 
   @SneakyThrows
@@ -423,6 +444,16 @@ public class TestRailClientTest {
       client.getCustomStatuses();
     } catch (TestRailException e) {
       assertEquals(e.getStatus(), TestRailErrorStatus.HIT_RATE_LIMIT);
+    }
+  }
+
+  @Test
+  public void testSocketTimeoutException() {
+    setApiClient(socketTimeoutApi);
+    try {
+      client.getCustomStatuses();
+    } catch (TestRailException e) {
+      assertEquals(e.getStatus(), TestRailErrorStatus.SOCKET_TIMEOUT);
     }
   }
 }

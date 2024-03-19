@@ -44,12 +44,14 @@ public enum TestRailErrorStatus {
   INVALID_ROUTE("The given TestRail endpoint does not exist."),
   /** TestRail is performing maintenance */
   MAINTENANCE("TestRail is performing maintenance.  Try again later."),
+  /** TestRail did not respond within the provided read timeout */
+  SOCKET_TIMEOUT("Timed out waiting for response from TestRail."),
   /** Another error occurred */
   UNKNOWN_ERROR("An unknown TestRail error has occurred.");
 
   /** A set of statuses that are considered non-blocking */
   public static final Set<TestRailErrorStatus> NON_BLOCKING_STATUSES =
-      Sets.immutableEnumSet(HIT_RATE_LIMIT, MAINTENANCE, UNKNOWN_ERROR);
+      Sets.immutableEnumSet(HIT_RATE_LIMIT, MAINTENANCE, SOCKET_TIMEOUT, UNKNOWN_ERROR);
 
   private final String message;
 
