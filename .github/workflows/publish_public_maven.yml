@@ -1,0 +1,92 @@
+name: Maven Publish Public
+
+on:
+  push:
+    branches: ['master']
+    tags:
+      - 'v*.*.*'  
+
+jobs:
+  build-and-publish:
+    runs-on: 'ubuntu-latest'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: "temurin"
+      - name: Set up Maven
+        uses: hb0730/maven-action@v1
+        with:
+          maven-version: 3.8.2
+      - name: Create Maven settings.xml
+        run: |
+          cat << 'EOF' > $HOME/.m2/settings.xml
+          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                              https://maven.apache.org/xsd/settings-1.0.0.xsd">
+            <servers>
+                <server>
+                    <id>s3.applause-public-repo</id>
+                    <username>${{ secrets.APPLAUSE_REPO_USER_NAME }}</username>
+                    <password>${{ secrets.APPLAUSE_REPO_PASSWORD }}</password>
+                </server>
+                <server>
+                    <id>s3.applause-public-snapshots</id>
+                    <username>${{ secrets.APPLAUSE_REPO_USER_NAME }}</username>
+                    <password>${{ secrets.APPLAUSE_REPO_PASSWORD }}</password>
+                </server>
+            </servers>
+
+            <profiles>
+              <profile>
+                <activation>
+                  <activeByDefault>true</activeByDefault>
+                </activation>
+
+                <repositories>
+                  <repository>
+                    <id>applause-public-repo</id>
+                    <name>Repository for Applause public artifacts (releases)</name>
+                    <url>https://repo.applause.com/repository/public</url>
+                    <releases><enabled>true</enabled></releases>
+                    <snapshots><enabled>false</enabled></snapshots>
+                  </repository>
+                  <repository>
+                    <id>applause-public-snapshots</id>
+                    <name>Repository for Applause public artifacts (snapshots)</name>
+                    <url>https://repo.applause.com/repository/snapshots</url>
+                    <releases><enabled>false</enabled></releases>
+                    <snapshots><enabled>true</enabled></snapshots>
+                  </repository>
+                </repositories>
+                <pluginRepositories>
+                  <pluginRepository>
+                    <id>applause-public-repo</id>
+                    <name>Repository for Applause public artifacts (releases)</name>
+                    <url>https://repo.applause.com/repository/public</url>
+                    <releases><enabled>true</enabled></releases>
+                    <snapshots><enabled>false</enabled></snapshots>
+                  </pluginRepository>
+                </pluginRepositories>
+              </profile>
+            </profiles>
+          </settings>
+          EOF
+
+      - name: Publish
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/}"
+          # Strip leading 'v' from version
+          VERSION="${VERSION#v}"
+          
+          # Overwrite pom.xml version with tag version
+          mvn build-helper:parse-version versions:set -DgenerateBackupPoms=false -DnewVersion="$VERSION"
+      
+          mvn clean install deploy
+
