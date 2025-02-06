@@ -2,7 +2,6 @@ name: Maven Publish Public
 
 on:
   push:
-    branches: ['master']
     tags:
       - 'v*.*.*'  
 
@@ -84,6 +83,12 @@ jobs:
           VERSION="${GITHUB_REF#refs/tags/}"
           # Strip leading 'v' from version
           VERSION="${VERSION#v}"
+
+          # Check if version is in the format X.Y.Z
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag version $VERSION is not in the format X.Y.Z (e.g., 1.0.0), exiting."
+            exit 1
+          fi
           
           # Overwrite pom.xml version with tag version
           mvn build-helper:parse-version versions:set -DgenerateBackupPoms=false -DnewVersion="$VERSION"
